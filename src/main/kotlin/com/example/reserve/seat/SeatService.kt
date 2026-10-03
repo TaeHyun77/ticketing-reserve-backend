@@ -13,7 +13,7 @@ import java.time.LocalDateTime
 
 @Service
 class SeatService(
-    private val seatRepository: SeatRepository
+    private val seatRepository: SeatRepository,
 ): Loggable {
 
     // 좌석 홀드 ( 빈 좌석/만료 홀드/내 홀드만 원자적으로 HELD )
@@ -37,7 +37,7 @@ class SeatService(
         throwClaimCause(scheduleId, seatNumbers, ErrorCode.HOLD_EXPIRED_OR_NOT_OWNED)
     }
 
-    // 홀드 즉시 해제 ( 내 홀드만, 멱등 — 이미 확정됐거나 내 홀드가 아니면 no-op )
+    // 홀드 즉시 해제 ( 내 홀드만, 멱등 - 이미 확정됐거나 내 홀드가 아니면 )
     fun releaseHeldSeats(member: Member, scheduleId: Long, seatNumbers: List<String>) {
         seatRepository.releaseHeldSeats(member, scheduleId, seatNumbers)
     }
@@ -47,11 +47,16 @@ class SeatService(
         seats.forEach { it.release() }
     }
 
-    // 특정 공연 스케줄의 좌석 목록 조회 ( 만료된 홀드는 판매가능으로 노출 )
+    // 전체 좌석 조회 ( 만료된 홀드는 판매가능으로 노출 )
     fun getSeatList(performanceScheduleId: Long): List<SeatResponse> {
         val now = LocalDateTime.now()
-        return seatRepository.findSeatByPerformanceScheduleId(performanceScheduleId)
-            .map { SeatResponse.from(it, now) }
+        return seatRepository.findSeatStatusRows(performanceScheduleId).map { it.toResponse(now) }
+    }
+
+    // 구역 좌석 조회 ( 만료된 홀드는 판매가능으로 노출 )
+    fun getSeatList(performanceScheduleId: Long, zone: String): List<SeatResponse> {
+        val now = LocalDateTime.now()
+        return seatRepository.findSeatStatusRows(performanceScheduleId, zone).map { it.toResponse(now) }
     }
 
     // 부분 선점 실패 원인 구분: 요청 좌석 중 없는 좌석이 있으면 NOT_EXIST_SEAT_INFO, 아니면 전달된 충돌 코드

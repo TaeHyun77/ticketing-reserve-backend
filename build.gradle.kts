@@ -30,8 +30,11 @@ dependencies {
 
 	// 부하 테스트 관측용 (Hikari/Tomcat/JVM 메트릭 노출) - loadtest 프로파일에서만 엔드포인트 노출
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	// 부하테스트 관측: http.server.requests 히스토그램/p99 를 /actuator/prometheus 로 노출
+	implementation("io.micrometer:micrometer-registry-prometheus")
 
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")

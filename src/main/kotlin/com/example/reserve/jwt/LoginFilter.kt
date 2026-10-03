@@ -51,7 +51,7 @@ class LoginFilter(
         val email = userDetails.getEmail()
         val role = authentication.authorities.first().authority
 
-        val accessToken = jwtUtil.createToken(username, name, email, role,"access", 600_000L)
+        val accessToken = jwtUtil.createToken(username, name, email, role,"access", 7_200_000L)
         val refreshToken = jwtUtil.createToken(username, name, email, role,"refresh", 86_400_000L)
 
         val refresh = Refresh(username = username,  refresh = refreshToken, expiration = 86400000L)
