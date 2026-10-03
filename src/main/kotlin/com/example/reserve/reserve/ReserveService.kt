@@ -30,11 +30,11 @@ class ReserveService(
 ) : Loggable {
 
     companion object {
-        // 좌석 홀드 유효시간(분) — 결제창 이동 순간부터 이 시간 안에 confirm 해야 한다
+        // 좌석 홀드 유효시간(분) - 결제창 이동 순간부터 이 시간 안에 confirm 해야 한다
         const val HOLD_TTL_MINUTES = 5L
     }
 
-    // 1단계: 좌석 홀드 ( 결제창 이동 시점 ). 크레딧 차감 없음, 회원 락 없음.
+    // 1단계: 좌석 홀드 ( 결제창 이동 시점 ) 크레딧 차감 없음, 회원 락 없음
     @Transactional
     fun hold(request: HoldRequest, username: String): HoldResponse {
         val member = memberService.getMemberByUsername(username)
@@ -45,7 +45,7 @@ class ReserveService(
         return HoldResponse(request.seatNumbers, heldUntil)
     }
 
-    // 2단계: 결제 확정 ( 결제창 최종 결제 시점 ). 결제 후 내 유효 홀드를 RESERVED 로 확정.
+    // 2단계: 결제 확정 ( 결제창 최종 결제 시점 ) 결제 후 내 유효 홀드를 RESERVED 로 확정
     @Transactional
     fun confirm(request: ReserveRequest, username: String): ReserveResponse {
         // 1. 공연 스케줄 정보 조회
@@ -75,7 +75,7 @@ class ReserveService(
             )
         )
 
-        // 5. 좌석 확정 ( 내 유효 홀드만 원자적 RESERVED — 만료/탈취 시 예외 → 결제 롤백 )
+        // 5. 좌석 확정 ( 내 유효 홀드만 원자적 RESERVED - 만료/탈취 시 예외 → 결제 롤백 )
         seatService.confirmSeats(reserve, member, request.performanceScheduleId, request.seatNumbers)
 
         // 6. 예약 확인 이메일 — 발송 의도를 같은 커밋으로 아웃박스에 적재 (실제 발송은 워커가 처리)
@@ -86,7 +86,7 @@ class ReserveService(
         return ReserveResponse.from(reserve, request.seatNumbers)
     }
 
-    // 홀드 즉시 해제 ( 결제창 이탈·취소 시점 ). 내 홀드만 FREE 로 되돌림.
+    // 홀드 즉시 해제 ( 결제창 이탈/취소 시점 ) 내 홀드만 FREE 로 되돌림
     @Transactional
     fun release(request: HoldRequest, username: String) {
         val member = memberService.getMemberByUsername(username)
@@ -123,7 +123,7 @@ class ReserveService(
             throw ReserveException(HttpStatus.FORBIDDEN, ErrorCode.UNAUTHORIZED_ACCESS)
         }
 
-        // 3. 취소 가능 시점 검증 ( 공연 시작 이후 차단, 환불·멤버 락 전에 빠른 실패 )
+        // 3. 취소 가능 시점 검증 ( 공연 시작 이후 차단, 환불/멤버 락 전에 빠른 실패 )
         val performanceSchedule = performanceScheduleService.getPerformanceSchedule(reserve.performanceScheduleId)
         performanceSchedule.validateCancellable()
 

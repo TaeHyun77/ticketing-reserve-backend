@@ -1,6 +1,9 @@
 # ===== 빌드 스테이지 =====
 FROM amazoncorretto:17 AS builder
 
+# gradlew 가 클래스패스 구성에 xargs 를 쓰는데 corretto 베이스에 findutils 가 없어 빌드가 실패한다 → 설치.
+RUN yum install -y findutils && yum clean all
+
 WORKDIR /app
 
 # Gradle Wrapper + 설정 먼저 복사

@@ -25,16 +25,6 @@ class Seat(
     @Column(name = "seat_id")
     val id: Long? = null,
 
-    // 공연 정보
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "performanceSchedule_id")
-    val performanceSchedule: PerformanceSchedule,
-
-    // 좌석의 예약 정보 ( 확정 시 연결 )
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reserve_id")
-    var reserve: Reserve? = null,
-
     // 좌석 번호
     val seatNumber: String,
 
@@ -42,12 +32,22 @@ class Seat(
     @Enumerated(EnumType.STRING)
     var status: SeatStatus = SeatStatus.FREE,
 
+    // 공연 정보
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "performanceSchedule_id")
+    val performanceSchedule: PerformanceSchedule,
+
+    // 좌석의 예약 정보
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reserve_id")
+    var reserve: Reserve? = null,
+
     // 임시 점유(홀드) 홀더
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "held_by")
     var heldBy: Member? = null,
 
-    // 홀드 만료 시각 — 이 시각 이후의 HELD 는 만료로 간주해 다시 점유 가능 ( 지연 만료 )
+    // 홀드 만료 시각 : 이 시각 이후의 HELD 는 만료로 간주해 다시 점유 가능 ( 지연 만료 )
     var heldUntil: LocalDateTime? = null,
 ) {
     // 확정 예약 여부

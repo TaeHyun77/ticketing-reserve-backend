@@ -21,7 +21,7 @@ class EmailOutbox(
     @Column(name = "email_outbox_id")
     val id: Long? = null,
 
-    // ReservationEmailData 를 직렬화한 JSON 스냅샷 (확정 시점 상태를 그대로 담는다)
+    // ReservationEmailData 를 직렬화한 JSON 스냅샷
     @Column(columnDefinition = "TEXT", nullable = false)
     val payload: String,
 
@@ -29,9 +29,22 @@ class EmailOutbox(
     var nextAttemptAt: LocalDateTime,
 ) : BaseTime() {
 
+    @Column(nullable = false)
+    var attemptCount: Int = 0
+
+    // 재시도 상한 초과 시 true - 폴링 대상에서 제외되어 무한 재시도를 멈춤
+    @Column(nullable = false)
+    var dead: Boolean = false
+
     // 발송 실패 시 다음 시도 시각을 미래로 미룸
     fun retryAfter(next: LocalDateTime) {
         nextAttemptAt = next
+    }
+
+    // 발송 실패 기록 - 시도 횟수를 늘리고, 상한에 도달하면 재시도 대상에서 제외
+    fun recordFailure(maxAttempts: Int) {
+        attemptCount++
+        if (attemptCount >= maxAttempts) dead = true
     }
 
     companion object {

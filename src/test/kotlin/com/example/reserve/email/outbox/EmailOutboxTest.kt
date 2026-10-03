@@ -9,8 +9,11 @@ import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
 import org.mockito.BDDMockito.willThrow
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.test.context.TestPropertySource
 import java.time.LocalDateTime
 
+// max-attempts 를 낮춰 DLQ 격리를 적은 반복으로 결정론적으로 검증한다.
+@TestPropertySource(properties = ["email.outbox.max-attempts=2"])
 class EmailOutboxTest(
     @Autowired private val emailOutboxService: EmailOutboxService
 ) : IntegrationTestSupport() {
@@ -54,10 +57,10 @@ class EmailOutboxTest(
     }
 
     @Test
-    fun `dispatchBatch는 발송 성공 행을 삭제한다`() {
+    fun `발송 성공 행은 claim-send-complete 로 삭제된다`() {
         txTemplate.executeWithoutResult { emailOutboxService.enqueue(sampleData()) }
 
-        emailOutboxService.dispatchBatch()
+        runDispatch()
 
         assertThat(emailOutboxRepository.findAll()).isEmpty()
     }
@@ -67,9 +70,59 @@ class EmailOutboxTest(
         willThrow(RuntimeException("SMTP down")).given(mailSender).send(any(MimeMessage::class.java))
         txTemplate.executeWithoutResult { emailOutboxService.enqueue(sampleData()) }
 
-        emailOutboxService.dispatchBatch()
+        runDispatch()
 
+        // 실패 행은 삭제되지 않고, claim 시점의 리스로 다음 시도 시각이 미래로 밀려 있어야 한다.
         val row = emailOutboxRepository.findAll().single()
         assertThat(row.nextAttemptAt).isAfter(LocalDateTime.now())
+    }
+
+    @Test
+    fun `상한을 초과하면 dead 로 격리되어 더 이상 재시도되지 않는다`() {
+        willThrow(RuntimeException("SMTP down")).given(mailSender).send(any(MimeMessage::class.java))
+        txTemplate.executeWithoutResult { emailOutboxService.enqueue(sampleData()) }
+
+        // max-attempts=2 → 두 번 실패하면 dead 로 격리된다.
+        repeat(2) {
+            // claim 의 리스로 미래로 밀린 시각을 과거로 되돌려 다음 라운드에서 다시 선점되게 한다.
+            txTemplate.executeWithoutResult {
+                emailOutboxRepository.findAll().single().retryAfter(LocalDateTime.now().minusSeconds(1))
+            }
+            runDispatch()
+        }
+
+        val row = emailOutboxRepository.findAll().single()
+        assertThat(row.dead).isTrue()
+        assertThat(row.attemptCount).isEqualTo(2)
+        assertThat(emailOutboxRepository.findDueForDispatch(LocalDateTime.now(), 100)).isEmpty()
+    }
+
+    @Test
+    fun `findDueForDispatch는 dead 행을 제외한다`() {
+        val now = LocalDateTime.now()
+        emailOutboxRepository.save(EmailOutbox.pending("pending", now.minusSeconds(1)))
+        emailOutboxRepository.save(
+            EmailOutbox.pending("dead", now.minusSeconds(1)).apply { recordFailure(maxAttempts = 1) }
+        )
+
+        val due = emailOutboxRepository.findDueForDispatch(now, 100)
+
+        assertThat(due.map { it.payload }).containsExactly("pending")
+    }
+
+    // 워커 poll() 오케스트레이션을 그대로 재현한다 (테스트 프로파일에선 스케줄러가 꺼져 워커 빈이 없으므로 직접 구동).
+    private fun runDispatch() {
+        val claimed = emailOutboxService.claim()
+        val sentIds = mutableListOf<Long>()
+        val failedIds = mutableListOf<Long>()
+        for (email in claimed) {
+            try {
+                emailOutboxService.send(email.payload)
+                sentIds += email.id
+            } catch (e: Exception) {
+                failedIds += email.id
+            }
+        }
+        emailOutboxService.complete(sentIds, failedIds)
     }
 }
