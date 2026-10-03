@@ -109,6 +109,7 @@ abstract class IntegrationTestSupport {
     protected fun saveScheduleWithSeats(
         price: Long = 10_000,
         seatNumbers: List<String> = listOf("A1"),
+        zone: String = "A",
         startTime: LocalDateTime = LocalDateTime.now().plusDays(7),
     ): Long {
         val venue = venueRepository.save(Venue(name = "테스트 공연장", location = "서울"))
@@ -123,7 +124,7 @@ abstract class IntegrationTestSupport {
                 endTime = startTime.plusHours(2),
             )
         )
-        seatRepository.saveAll(seatNumbers.map { Seat(seatNumber = it, performanceSchedule = schedule) })
+        seatRepository.saveAll(seatNumbers.map { Seat(seatNumber = it, zone = zone, performanceSchedule = schedule) })
         return schedule.id!!
     }
 

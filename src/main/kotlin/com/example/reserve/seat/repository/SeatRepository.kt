@@ -103,12 +103,12 @@ interface SeatRepository: JpaRepository<Seat, Long> {
     """)
     fun findSeatStatusRows(@Param("scheduleId") scheduleId: Long): List<SeatStatusRow>
 
-    // 구역 좌석맵 조회 - 좌석번호 prefix('{zone}-')로 필터
+    // 구역 좌석맵 조회 - (회차, 구역) 인덱스로 해당 구역 행만 조회
     @Query("""
         SELECT new com.example.reserve.seat.SeatStatusRow(s.seatNumber, s.status, s.heldUntil)
           FROM Seat s
          WHERE s.performanceSchedule.id = :scheduleId
-           AND s.seatNumber LIKE CONCAT(:zone, '-%')
+           AND s.zone = :zone
     """)
     fun findSeatStatusRows(@Param("scheduleId") scheduleId: Long, @Param("zone") zone: String): List<SeatStatusRow>
 

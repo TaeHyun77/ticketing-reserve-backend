@@ -11,13 +11,18 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.LocalDateTime
 
-@Table(uniqueConstraints = [UniqueConstraint(columnNames = ["performanceSchedule_id", "seatNumber"])])
+@Table(
+    uniqueConstraints = [UniqueConstraint(columnNames = ["performanceSchedule_id", "seatNumber"])],
+    // 구역 좌석맵 조회가 회차 전체가 아닌 해당 구역 행만 읽도록 하는 인덱스
+    indexes = [Index(name = "idx_seat_schedule_zone", columnList = "performanceSchedule_id, zone")],
+)
 @Entity
 class Seat(
     @Id
@@ -27,6 +32,9 @@ class Seat(
 
     // 좌석 번호
     val seatNumber: String,
+
+    // 구역
+    val zone: String,
 
     // 좌석 상태 ( FREE=빈자리, HELD=임시 점유, RESERVED=확정 )
     @Enumerated(EnumType.STRING)
